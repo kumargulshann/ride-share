@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#f6f8f5">
+  <meta name="description" content="Save a trip with your pickup, drop-off, and departure window.">
+  <title>Post a trip · RideShare</title>
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/leaflet/leaflet.js"></script>
+  <script defer src="vendor/supabase.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <a class="brand" href="./">
+        <span class="brand-mark" aria-hidden="true"><i></i></span>
+        RideShare
+      </a>
+      <nav class="header-nav" aria-label="RideShare">
+        <a id="saved-trips-link" class="trips-link" href="#saved-trips">Saved trips <span id="trip-count" class="nav-count" hidden></span></a>
+        <a id="requests-link" class="trips-link" href="#requests" hidden>Requests <span id="request-count" class="nav-count" aria-live="polite" hidden></span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <div id="planner-view">
+    <div class="page-heading">
+      <h1>Post a trip</h1>
+      <p>Set your route, departure window, and preferred cab services.</p>
+    </div>
+
+    <section class="panel traveler-panel" aria-labelledby="traveler-title">
+      <div>
+        <h2 id="traveler-title">Traveler profile</h2>
+        <p id="auth-status" role="status">Connecting to Supabase…</p>
+      </div>
+      <form id="traveler-form" class="traveler-form" hidden>
+        <div class="field">
+          <label for="display-name">Display name</label>
+          <input id="display-name" name="displayName" type="text" placeholder="e.g. Anya"
+            autocomplete="nickname" maxlength="40" aria-describedby="auth-error" required>
+        </div>
+        <button type="submit" id="sign-in" class="submit-button">Continue</button>
+      </form>
+      <button type="button" id="retry-connection" class="secondary-button" hidden>Retry connection</button>
+      <p id="auth-error" class="form-error" role="alert" hidden></p>
+    </section>
+
+    <form id="trip-form" class="planner" novalidate>
+      <section class="panel route-panel" aria-labelledby="route-title">
+        <h2 id="route-title">Your route</h2>
+        <div class="location-field" data-location="pickup">
+          <span class="route-dot pickup" aria-hidden="true"></span>
+          <label for="pickup-label">Pickup</label>
+          <button type="button" id="pick-pickup" class="choose-point" data-pick="pickup"
+            aria-controls="trip-map" aria-pressed="true" aria-describedby="pickup-status">Set on map</button>
+          <input id="pickup-label" name="pickupLabel" type="text" autocomplete="off"
+            placeholder="e.g. Hostel main gate" maxlength="100" required>
+          <p id="pickup-status" class="point-status" aria-live="polite">Pick a point on the map</p>
+        </div>
+        <div class="location-field" data-location="dropoff">
+          <span class="route-dot dropoff" aria-hidden="true"></span>
+          <label for="dropoff-label">Drop-off</label>
+          <button type="button" id="pick-dropoff" class="choose-point" data-pick="dropoff"
+            aria-controls="trip-map" aria-pressed="false" aria-describedby="dropoff-status">Set on map</button>
+          <input id="dropoff-label" name="dropoffLabel" type="text" autocomplete="off"
+            placeholder="e.g. Kanpur Central station" maxlength="100" required>
+          <p id="dropoff-status" class="point-status" aria-live="polite">Pick a point on the map</p>
+        </div>
+      </section>
+
+      <section id="map-panel" class="panel map-panel" aria-labelledby="map-title">
+        <div class="map-header">
+          <div>
+            <h2 id="map-title">Choose on the map</h2>
+            <p>Pan and zoom to find your stops.</p>
+          </div>
+          <button type="button" id="locate" class="secondary-button">
+            <span class="locate-icon" aria-hidden="true"></span> My location
+          </button>
+        </div>
+        <div class="map-frame">
+          <div id="trip-map" aria-label="Interactive pickup and drop-off map" aria-describedby="map-guide"></div>
+          <span class="map-crosshair" aria-hidden="true"></span>
+        </div>
+        <div class="map-tools">
+          <p id="map-guide" role="status">Tap the map to set pickup.</p>
+          <button type="button" id="use-center" class="secondary-button">Use map center</button>
+        </div>
+        <p id="map-notice" class="map-notice" role="status" hidden></p>
+      </section>
+
+      <section class="panel details-panel" aria-labelledby="details-title">
+        <h2 id="details-title">Trip details</h2>
+        <div class="field">
+          <label for="travel-date">Travel date</label>
+          <input id="travel-date" name="travelDate" type="date" required>
+        </div>
+        <fieldset aria-describedby="window-note">
+          <legend>Departure window</legend>
+          <div class="time-grid">
+            <div class="field">
+              <label for="depart-from">Earliest</label>
+              <input id="depart-from" name="departFrom" type="time" required>
+            </div>
+            <div class="field">
+              <label for="depart-to">Latest</label>
+              <input id="depart-to" name="departTo" type="time" required>
+            </div>
+          </div>
+          <p class="field-note" id="window-note">Both times are on the travel date, in your device’s time zone.</p>
+        </fieldset>
+        <fieldset id="cab-services">
+          <legend>Preferred cab services</legend>
+          <div class="service-options">
+            <label><input type="checkbox" name="service" value="Ola"> Ola</label>
+            <label><input type="checkbox" name="service" value="Uber"> Uber</label>
+            <label><input type="checkbox" name="service" value="Rapido"> Rapido</label>
+          </div>
+        </fieldset>
+        <aside class="posting-tip">
+          <span class="clock-icon" aria-hidden="true"></span>
+          <p>You can post anytime. Posting 40–60 minutes before you plan to book gives you time to coordinate.</p>
+        </aside>
+        <p class="form-error" id="form-error" role="alert" tabindex="-1" hidden></p>
+        <button type="submit" id="post-trip" class="submit-button" disabled>Post trip</button>
+      </section>
+    </form>
+
+    <section class="saved-section" id="saved-trips" aria-labelledby="saved-title">
+      <div class="section-heading">
+        <h2 id="saved-title" tabindex="-1">Saved trips</h2>
+        <p>Only your traveler profile can see the trips you save to Supabase.</p>
+      </div>
+      <p id="save-message" class="save-message" role="status" hidden></p>
+      <p id="empty-state" class="empty-state" role="status">Sign in to see your trips.</p>
+      <button type="button" id="retry-trips" class="secondary-button" hidden>Retry loading trips</button>
+      <div id="trip-list" class="trip-list"></div>
+    </section>
+    </div>
+
+    <section id="matches-view" class="matches-page" aria-labelledby="matches-title" hidden>
+      <a class="trips-link back-link" id="back-to-trips" href="#saved-trips">Back to saved trips</a>
+      <div class="matches-heading">
+        <h1 id="matches-title" tabindex="-1">Trip matches</h1>
+        <button type="button" id="refresh-matches" class="submit-button">Refresh matches</button>
+      </div>
+
+      <section class="selected-trip" aria-labelledby="selected-trip-title">
+        <h2 id="selected-trip-title">Your selected trip</h2>
+        <div id="selected-trip-card"></div>
+      </section>
+
+      <p class="matches-location-note">Pickup and drop-off areas are approximate.</p>
+      <div id="matches-status" class="panel matches-status" role="status">
+        <p id="matches-status-title" class="status-title"></p>
+        <p id="matches-status-detail"></p>
+      </div>
+      <div id="matches-list" class="trip-list" aria-label="Compatible travelers"></div>
+    </section>
+
+    <section id="requests-view" class="matches-page" aria-labelledby="requests-title" hidden>
+      <a class="trips-link back-link" href="#saved-trips">Back to saved trips</a>
+      <div class="matches-heading">
+        <div>
+          <h1 id="requests-title" tabindex="-1">Requests</h1>
+          <p class="requests-intro">Accept a request to agree to chat. You still need to discuss and confirm the ride together.</p>
+        </div>
+        <button type="button" id="refresh-requests" class="secondary-button">Refresh requests</button>
+      </div>
+      <p id="requests-load-status" class="requests-notice" role="status" hidden></p>
+      <p id="requests-action-error" class="form-error" role="alert" hidden></p>
+      <div class="requests-grid">
+        <section aria-labelledby="incoming-title">
+          <h2 id="incoming-title">Incoming</h2>
+          <p id="incoming-empty" class="empty-state" hidden>No incoming requests yet.</p>
+          <div id="incoming-list" class="request-list"></div>
+        </section>
+        <section aria-labelledby="sent-title">
+          <h2 id="sent-title">Sent</h2>
+          <p id="sent-empty" class="empty-state" hidden>No sent requests yet.</p>
+          <div id="sent-list" class="request-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="chat-view" class="chat-page" aria-labelledby="chat-title" hidden>
+      <header class="chat-header">
+        <div class="chat-toolbar">
+          <a class="trips-link back-link" href="#requests">Back to requests</a>
+          <button type="button" id="close-chat" class="secondary-button" hidden>Close conversation</button>
+        </div>
+        <h1 id="chat-title" tabindex="-1">Conversation</h1>
+        <dl id="chat-details" class="chat-details" hidden>
+          <div><dt>Pickup area</dt><dd id="chat-pickup"></dd></div>
+          <div><dt>Drop-off area</dt><dd id="chat-dropoff"></dd></div>
+          <div><dt>Shared departure</dt><dd id="chat-window"></dd></div>
+        </dl>
+        <p id="chat-closed" class="chat-closed" role="status" hidden>Conversation closed</p>
+      </header>
+
+      <div id="chat-thread" class="chat-thread" role="log" aria-label="Messages" aria-relevant="additions text" tabindex="0">
+        <p id="chat-load-status" class="chat-notice" role="status"></p>
+        <button type="button" id="retry-chat" class="secondary-button" hidden>Retry loading conversation</button>
+        <p id="chat-empty" class="chat-notice" hidden>Say hello to start planning the ride.</p>
+        <ol id="chat-messages" class="chat-messages"></ol>
+      </div>
+
+      <form id="chat-composer" class="chat-composer" novalidate hidden>
+        <p id="chat-send-error" class="sharing-error" role="alert" hidden></p>
+        <div class="chat-compose-row">
+          <label class="sr-only" for="chat-entry">Message</label>
+          <textarea id="chat-entry" rows="1" maxlength="2000" placeholder="Write a message" aria-describedby="chat-send-error"></textarea>
+          <button type="submit" id="chat-send" class="submit-button" disabled>Send</button>
+        </div>
+      </form>
+
+      <dialog id="close-chat-dialog" class="chat-dialog" aria-labelledby="close-chat-title">
+        <h2 id="close-chat-title">Close this conversation?</h2>
+        <p>Both travelers can still see the message history.</p>
+        <p id="chat-close-error" class="sharing-error" role="alert" hidden></p>
+        <form method="dialog" class="sharing-controls">
+          <button type="submit" class="secondary-button">Cancel</button>
+          <button type="button" id="confirm-close-chat" class="submit-button">Close conversation</button>
+        </form>
+      </dialog>
+    </section>
+  </main>
+
+  <template id="saved-trip-template">
+    <article class="panel saved-card">
+      <div class="saved-route">
+        <p><span class="route-dot pickup" aria-hidden="true"></span><span><span class="saved-label">Pickup</span><strong data-value="pickup"></strong></span></p>
+        <p><span class="route-dot dropoff" aria-hidden="true"></span><span><span class="saved-label">Drop-off</span><strong data-value="dropoff"></strong></span></p>
+      </div>
+      <p class="saved-date" data-value="date"></p>
+      <p class="saved-time" data-value="time"></p>
+      <div class="saved-services" data-value="services" aria-label="Preferred cab services"></div>
+      <button type="button" class="secondary-button find-matches" hidden>Find matches</button>
+    </article>
+  </template>
+
+  <template id="match-card-template">
+    <article class="panel match-card">
+      <h2 data-value="name"></h2>
+      <div class="saved-route match-route">
+        <p><span class="route-dot pickup" aria-hidden="true"></span><span><span class="saved-label">Pickup area</span><strong data-value="pickup"></strong></span></p>
+        <p><span class="route-dot dropoff" aria-hidden="true"></span><span><span class="saved-label">Drop-off area</span><strong data-value="dropoff"></strong></span></p>
+      </div>
+      <div class="match-window">
+        <p class="saved-label">Shared departure window</p>
+        <p class="shared-window" data-value="window"></p>
+        <p class="saved-time" data-value="date"></p>
+      </div>
+      <p class="saved-label match-cabs">Preferred cab services</p>
+      <div class="saved-services" data-value="services"></div>
+      <div class="sharing-controls" data-value="actions"></div>
+      <p class="sharing-status" data-value="status" role="status" hidden></p>
+      <p class="sharing-error" data-value="error" role="alert" hidden></p>
+    </article>
+  </template>
+</body>
+</html>

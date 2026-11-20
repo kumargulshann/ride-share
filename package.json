@@ -1,0 +1,14 @@
+{
+  "name": "ride-share",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.2"
+  }
+}
